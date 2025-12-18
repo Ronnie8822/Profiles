@@ -1,16 +1,20 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
-import { createServer } from "http";
 
 const app = express();
-const httpServer = createServer(app);
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
+// ✅ ROOT ROUTE
+app.get("/", (req, res) => {
+  res.send("✅ Profiles API is running on Vercel");
+});
+
+// middlewares / routes
+registerRoutes(app);
+serveStatic(app);
+
+// ✅ VERY IMPORTANT FOR VERCEL
+export default app;
 
 app.use(
   express.json({
