@@ -6,23 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Save,
-  Eye,
-  X,
-  Copy,
-  Check,
-  Link as LinkIcon,
-  Lock,
-  Globe,
-  Music,
-  Upload,
-} from "lucide-react";
+import { Save, Eye, Copy, Check, Lock, Globe } from "lucide-react";
 
 import ProfileAvatar from "./ProfileAvatar";
 import { GradientPicker } from "./AdvancedColorPicker";
 import FontSelector from "./FontSelector";
-import BannerUpload from "./BannerUpload";
 import SocialLinksSection from "./SocialLinksSection";
 import { ProfileData } from "./ProfileView";
 import { saveProfile } from "@/lib/storage";
@@ -42,65 +30,48 @@ export default function ProfileEditor({
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
+  /* ================= UPDATE PROFILE ================= */
   const updateProfile = (updates: Partial<ProfileData>) => {
     onProfileChange({ ...profile, ...updates });
   };
 
-  /* ---------------- SAVE (LOCAL STORAGE) ---------------- */
+  /* ================= SAVE (LOCAL STORAGE + SLUG) ================= */
   const handleSave = () => {
-    saveProfile(profile);
+    if (!profile.username) {
+      toast({
+        title: "Username required",
+        description: "Please enter a username to generate your profile link",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const slug = saveProfile(profile); // 🔥 IMPORTANT
+
     toast({
       title: "Profile Saved",
-      description: "Your profile is saved locally on this device.",
+      description: `Your profile link is /${slug}`,
     });
   };
 
-  /* ---------------- FILE HELPERS ---------------- */
-  const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-  const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
-
-  const toBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-    });
-
-  const handleImageUpload = async (
-    file: File,
-    key: "avatarUrl" | "bannerUrl"
-  ) => {
-    if (file.size > MAX_IMAGE_SIZE || !file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid image",
-        description: "Upload JPG / PNG / GIF under 10MB",
-        variant: "destructive",
-      });
-      return;
-    }
-    updateProfile({ [key]: await toBase64(file) });
-  };
-
-  const handleMusicUpload = async (file: File) => {
-    if (file.size > MAX_AUDIO_SIZE || !file.type.startsWith("audio/")) {
-      toast({
-        title: "Invalid audio",
-        description: "Upload MP3 / WAV / OGG under 15MB",
-        variant: "destructive",
-      });
-      return;
-    }
-    updateProfile({ musicUrl: await toBase64(file) });
-  };
-
+  /* ================= COPY LINK ================= */
   const handleCopyLink = async () => {
-    const url = `${window.location.origin}/profile`;
+    if (!profile.username) {
+      toast({
+        title: "No profile link",
+        description: "Save profile first to generate your link",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const url = `${window.location.origin}/${profile.username}`;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /* ================= BACKGROUND STYLE ================= */
   const useGradient = profile.useGradient === "true";
   const bgStyle = useGradient
     ? `linear-gradient(135deg, ${profile.gradientFrom}, ${profile.gradientTo})`
@@ -108,19 +79,24 @@ export default function ProfileEditor({
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
-      {/* PREVIEW */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-8" style={{ background: bgStyle }}>
+      {/* ================= PREVIEW ================= */}
+      <div
+        className="hidden lg:flex lg:w-1/2 items-center justify-center p-8"
+        style={{ background: bgStyle }}
+      >
         <div className="w-full max-w-sm bg-white/10 rounded-3xl p-6 text-center text-white">
           <ProfileAvatar
             imageUrl={profile.avatarUrl}
             name={profile.name || "User"}
           />
-          <h1 className="mt-3 text-lg font-bold">{profile.name || "Your Name"}</h1>
+          <h1 className="mt-3 text-lg font-bold">
+            {profile.name || "Your Name"}
+          </h1>
           <p className="text-xs opacity-80">{profile.about}</p>
         </div>
       </div>
 
-      {/* EDITOR */}
+      {/* ================= EDITOR ================= */}
       <div className="flex-1 bg-background">
         <div className="flex justify-between items-center p-4 border-b">
           <h1 className="text-xl font-bold">Edit Profile</h1>
@@ -136,6 +112,7 @@ export default function ProfileEditor({
 
         <ScrollArea className="h-[calc(100vh-64px)]">
           <div className="p-4 space-y-6">
+            {/* COLORS */}
             <Card className="p-4">
               <GradientPicker
                 gradientFrom={profile.gradientFrom}
@@ -153,6 +130,7 @@ export default function ProfileEditor({
               />
             </Card>
 
+            {/* FONT */}
             <Card className="p-4">
               <FontSelector
                 value={profile.fontFamily || "Inter"}
@@ -160,10 +138,12 @@ export default function ProfileEditor({
               />
             </Card>
 
+            {/* USERNAME */}
             <Card className="p-4">
-              <label className="block mb-1">Username</label>
+              <Label>Username</Label>
               <Input
                 value={profile.username}
+                placeholder="yourname"
                 onChange={(e) =>
                   updateProfile({
                     username: e.target.value
@@ -174,8 +154,9 @@ export default function ProfileEditor({
               />
             </Card>
 
+            {/* ABOUT */}
             <Card className="p-4">
-              <label className="block mb-1">About</label>
+              <Label>About</Label>
               <Textarea
                 value={profile.about}
                 onChange={(e) => updateProfile({ about: e.target.value })}
@@ -183,6 +164,7 @@ export default function ProfileEditor({
               />
             </Card>
 
+            {/* SOCIAL LINKS */}
             <Card className="p-4">
               <SocialLinksSection
                 links={profile.links}
@@ -191,6 +173,7 @@ export default function ProfileEditor({
               />
             </Card>
 
+            {/* PRIVACY */}
             <Card className="p-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -204,10 +187,23 @@ export default function ProfileEditor({
               </div>
             </Card>
 
+            {/* SHARE LINK */}
             <Card className="p-4">
-              <Input value={`${window.location.origin}/profile`} readOnly />
-              <Button onClick={handleCopyLink} variant="outline" className="mt-2">
-                {copied ? <Check /> : <Copy />} Copy Link
+              <Input
+                value={
+                  profile.username
+                    ? `${window.location.origin}/${profile.username}`
+                    : "Save profile to generate link"
+                }
+                readOnly
+              />
+              <Button
+                onClick={handleCopyLink}
+                variant="outline"
+                className="mt-2"
+              >
+                {copied ? <Check className="mr-2" /> : <Copy className="mr-2" />}
+                {copied ? "Copied" : "Copy Link"}
               </Button>
             </Card>
           </div>
@@ -215,4 +211,4 @@ export default function ProfileEditor({
       </div>
     </div>
   );
-              }
+    }
