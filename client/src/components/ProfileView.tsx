@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ProfileAvatar from "./ProfileAvatar";
 import { SocialLink, SocialPlatform } from "./SocialLinkCard";
-import { Volume2, VolumeX, Globe } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import {
   SiInstagram,
   SiYoutube,
@@ -13,12 +13,11 @@ import {
   SiSpotify,
   SiGithub,
 } from "react-icons/si";
+import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getProfile } from "@/lib/storage";
-
-/* ================= TYPES ================= */
 
 export interface ProfileData {
+  id: string;
   username: string;
   name: string;
   tagline: string;
@@ -36,11 +35,9 @@ export interface ProfileData {
 }
 
 interface ProfileViewProps {
-  profile?: ProfileData; // optional now
+  profile: ProfileData;
   isPreview?: boolean;
 }
-
-/* ================= ICON MAP ================= */
 
 const platformIcons: Record<
   SocialPlatform,
@@ -58,8 +55,6 @@ const platformIcons: Record<
   website: Globe,
 };
 
-/* ================= SOCIAL GRID ================= */
-
 function SocialIconGrid({ links }: { links: SocialLink[] }) {
   return (
     <div className="flex flex-wrap justify-center gap-3">
@@ -71,8 +66,7 @@ function SocialIconGrid({ links }: { links: SocialLink[] }) {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-12 h-12 rounded-xl flex items-center justify-center
-                       bg-black/70 backdrop-blur hover:scale-110 transition"
+            className="w-12 h-12 rounded-xl flex items-center justify-center bg-black/70 backdrop-blur hover:scale-110 transition"
           >
             <Icon className="w-6 h-6 text-white" />
           </a>
@@ -82,47 +76,19 @@ function SocialIconGrid({ links }: { links: SocialLink[] }) {
   );
 }
 
-/* ================= MAIN COMPONENT ================= */
-
 export default function ProfileView({
-  profile: previewProfile,
+  profile,
   isPreview = false,
 }: ProfileViewProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [entered, setEntered] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [profile, setProfile] = useState<ProfileData | null>(
-    isPreview ? previewProfile ?? null : null
-  );
-
-  /* 🔹 LOAD FROM LOCAL STORAGE (REAL VIEW) */
-  useEffect(() => {
-    if (!isPreview) {
-      const saved = getProfile();
-      if (saved) setProfile(saved);
-    }
-  }, [isPreview]);
-
-  /* 🔹 SYNC PREVIEW PROFILE */
-  useEffect(() => {
-    if (isPreview && previewProfile) {
-      setProfile(previewProfile);
-    }
-  }, [isPreview, previewProfile]);
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        No profile found
-      </div>
-    );
-  }
 
   const fontFamily = profile.fontFamily || "Inter";
   const mainColor = profile.accentColor || profile.primaryColor;
   const useGradient = profile.useGradient === "true";
 
-  /* ▶ Play music only after enter */
+  /* ▶ Play music ONLY after enter */
   useEffect(() => {
     if (!entered || !audioRef.current || !profile.musicUrl) return;
 
@@ -136,11 +102,13 @@ export default function ProfileView({
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.muted = !audio.muted;
-    setIsMuted(audio.muted);
-
-    if (!audio.muted) {
+    if (isMuted) {
+      audio.muted = false;
       audio.play().catch(() => {});
+      setIsMuted(false);
+    } else {
+      audio.muted = true;
+      setIsMuted(true);
     }
   };
 
@@ -161,12 +129,13 @@ export default function ProfileView({
         }}
       />
 
-      {/* ================= CLICK TO ENTER ================= */}
+      {/* ================= CLICK TO ENTER OVERLAY ================= */}
       {!entered && (
         <div
           onClick={() => setEntered(true)}
           className="fixed inset-0 z-[999] cursor-pointer"
         >
+          {/* Blurred banner */}
           <div
             className="absolute inset-0"
             style={{
@@ -179,7 +148,11 @@ export default function ProfileView({
               transform: "scale(1.15)",
             }}
           />
+
+          {/* Dark overlay */}
           <div className="absolute inset-0 bg-black/55" />
+
+          {/* Text */}
           <div className="relative z-10 h-full flex items-center justify-center">
             <p
               className="text-white text-xl tracking-wide"
@@ -197,6 +170,8 @@ export default function ProfileView({
       {profile.musicUrl && !isPreview && (
         <>
           <audio ref={audioRef} src={profile.musicUrl} loop playsInline />
+
+          {/* 🔊 Sound button (after enter only) */}
           {entered && (
             <Button
               size="icon"
@@ -237,6 +212,7 @@ export default function ProfileView({
                   />
                 </div>
 
+                {/* ✨ Sparkling white name */}
                 <h1
                   className="text-2xl font-bold text-white text-center"
                   style={{
@@ -280,4 +256,4 @@ export default function ProfileView({
       )}
     </div>
   );
-        }
+                         }
